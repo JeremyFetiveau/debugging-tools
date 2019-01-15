@@ -80,6 +80,8 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 	}
 
 	bool dumping_wasm_instance = false;
+	bool dumping_string = false;
+
 	for (unsigned int i = 0; i < pvoid_display_count; ++i) {
 		uintptr_t ptr = pobj + i * sizeof(uintptr_t);
 		unsigned long val = *reinterpret_cast<unsigned long*>(ptr);
@@ -95,10 +97,19 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 					os << "----- [ ";
 					os << HeapObject::cast(tmp_obj)->map()->instance_type();
 					os << " : 0x" << std::hex << HeapObject::cast(tmp_obj)->Size();
-					if (HeapObject::cast(tmp_obj)->map()->instance_type() == WASM_INSTANCE_TYPE) 
-						dumping_wasm_instance = true;
-					else
-						dumping_wasm_instance = false;
+					dumping_wasm_instance = false;
+					dumping_string = false;
+					switch (HeapObject::cast(tmp_obj)->map()->instance_type()) {
+						case WASM_INSTANCE_TYPE:
+							dumping_wasm_instance = true;
+							break;
+						case ONE_BYTE_STRING_TYPE:
+						case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+							dumping_string = true;
+							break;
+						default:
+							break;
+					}
 					os << ((dumping_wasm_instance) ? " : REFERENCES RWX MEMORY]" : " ]");
 					os << " -----";
 					os << std::endl;
@@ -120,6 +131,11 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 			if (dumping_wasm_instance) {
 				if (i == WasmInstanceObject::kJumpTableStartOffset / sizeof(uintptr_t))
 					os << "JumpTableStart [RWX]";
+			}
+			else if (dumping_string) {
+				std::string str = std::string((const char*)&val).substr(0, sizeof(uintptr_t));
+				str.erase(remove_if(str.begin(),str.end(), [](char c) { return c < '!'; }), str.end());  
+				os << str;
 			}
 			os << std::endl;
 		}
