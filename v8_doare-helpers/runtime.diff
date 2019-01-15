@@ -1,0 +1,30 @@
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 74bf642..b6e0f4f 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -445,10 +445,12 @@ namespace internal {
+   F(DebugTrackRetainingPath, -1, 1)           \
+   F(DeoptimizeFunction, 1, 1)                 \
+   I(DeoptimizeNow, 0, 1)                      \
++  F(DescribeObjectLayout, 1, 1)               \
+   F(DeserializeWasmModule, 2, 1)              \
+   F(DisallowCodegenFromStrings, 1, 1)         \
+   F(DisallowWasmCodegen, 1, 1)                \
+   F(DisassembleFunction, 1, 1)                \
++  F(DumpObjects, 2, 1)                        \
+   F(FreezeWasmLazyCompilation, 1, 1)          \
+   F(GetCallable, 0, 1)                        \
+   F(GetDeoptCount, 1, 1)                      \
+
+diff --git a/BUILD.gn b/BUILD.gn
+index a00dcd7..089d6f4 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -2442,6 +2444,7 @@ v8_source_set("v8_base") {
+     "src/runtime/runtime-strings.cc",
+     "src/runtime/runtime-symbol.cc",
+     "src/runtime/runtime-test.cc",
++    "src/runtime/runtime-doare-helpers.cc",
+     "src/runtime/runtime-typedarray.cc",
+     "src/runtime/runtime-utils.h",
+     "src/runtime/runtime-wasm.cc",
