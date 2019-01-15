@@ -23,7 +23,7 @@ Long story short :
 
 ## Examples
 
-### `DumpObjects()`
+### `%DumpObjects()`
 
 Usage is the following : 
 
