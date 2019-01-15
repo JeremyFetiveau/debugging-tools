@@ -4,7 +4,7 @@ The file `runtime-doare-helpers.cc` is a C++ runtime function for [v8](https://v
 
 Runtime functions can be called using the native syntax `%FunctionName`.
 
-You need to enable this syntax using the flag `--allow-natives-syntax` in order to make in work in the [d8](https://cs.chromium.org/chromium/src/v8/src/d8.cc) shell.
+You need to enable this syntax using the flag `--allow-natives-syntax` in order to make it work in the [d8](https://cs.chromium.org/chromium/src/v8/src/d8.cc) shell.
 
 If you want to pass flags to v8 from the browser, you also need to use the flag `--js-flags`.
 
