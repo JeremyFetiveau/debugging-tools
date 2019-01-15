@@ -11,7 +11,7 @@ If you want to pass flags to v8 from the browser, you also need to use the flag 
 Be aware that the code is not safe to use and is only a debugging helper.
 Many runtime functions are not safe to call directly from javascript.
 
-## Build
+## Build
 
 The helpers are implemented in `runtime-doare-helpers.cc`. 
 
@@ -23,7 +23,7 @@ Long story short :
 
 ## Examples
 
-### `DumpObjects(<js_object>,<lines>)`
+### `DumpObjects(<js_object>,<lines>)`
 
 ```
 $ d8 --allow-natives-syntax
