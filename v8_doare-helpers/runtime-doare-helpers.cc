@@ -28,18 +28,37 @@ bool isTaggedPointer(unsigned long ptr) {
 	return (ptr & 1) && (ptr > MIN_PTR_ADDR) && (ptr < MAX_PTR_ADDR) && IsAligned(ptr-1, kTaggedSize);
 }
 
+enum DumpFlag {
+	OBJECT_MODE = 0,
+	ADDRESS_MODE = 1
+};
+
 RUNTIME_FUNCTION(Runtime_DumpObjects) {
 	SealHandleScope shs(isolate);
-	MaybeObject maybe_object(*args.address_of_arg_at(0));
 
 	StdoutStream os;
-	Object obj = maybe_object.GetHeapObjectOrSmi();
-	Address  pobj = HeapObject::cast(obj)->address();
 
-	if (obj->IsSmi()) {
-		return args[0];
-	}
 	CONVERT_NUMBER_OPT(uint32_t, pvoid_display_count, Uint32, args[1],10)
+
+	DumpFlag mode = OBJECT_MODE;
+
+	if (pvoid_display_count & 1) {
+		mode = ADDRESS_MODE;
+	}
+
+	Address pobj;
+
+	if (mode == OBJECT_MODE) {
+		MaybeObject maybe_object(*args.address_of_arg_at(0));
+		Object obj = maybe_object.GetHeapObjectOrSmi();
+		pobj = HeapObject::cast(obj)->address();
+		if (obj->IsSmi()) 
+			return args[0];
+	}
+	else if (mode == ADDRESS_MODE) {
+		CONVERT_NUMBER_CHECKED(int64_t, obj_addr, Int64, args[0]);
+		pobj = static_cast<Address>(obj_addr);
+	}
 
 	for (unsigned int i = 0; i < pvoid_display_count; ++i) {
 		uintptr_t ptr = pobj + i * sizeof(uintptr_t);
@@ -52,7 +71,7 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 			if (heapobj_instance_type == MAP_TYPE) {
 				MaybeObject maybe_tmp_object(reinterpret_cast<Address>(ptr+1));
 				Object tmp_obj = maybe_tmp_object.GetHeapObjectOrSmi();
-				if (!obj->IsSmi()) {
+				if (!tmp_obj->IsSmi()) {
 					os << "----- [ ";
 					os << HeapObject::cast(tmp_obj)->map()->instance_type();
 					os << " : 0x" << std::hex << HeapObject::cast(tmp_obj)->Size();
