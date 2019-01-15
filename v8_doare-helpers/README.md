@@ -23,7 +23,13 @@ Long story short :
 
 ## Examples
 
-### `DumpObjects(<js_object>,<lines>)`
+### `DumpObjects()`
+
+Usage is the following : 
+
+* `%DumpObjects(<jsObject>, <lines|0>)`
+* `%DumpObjects(<objectAddress|0>, <lines|1>)`
+* `%DumpObjects(<objectAddress|1>, <lines|1>)`
 
 This example shows how to examine memory of a WebAssembly exported function and explore it so as to find a [pointer to WASM RWX memory](https://abiondo.me/2019/01/02/exploiting-math-expm1-v8/#code-execution).
 
