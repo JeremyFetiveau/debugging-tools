@@ -13,6 +13,9 @@
 #include "src/assembler-inl.h"
 #include "src/counters.h"
 
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -33,6 +36,13 @@ enum DumpFlag {
 	ADDRESS_MODE = 1
 };
 
+void usage() {
+	StdoutStream os;
+	os << "\%DumpObjects(js_object, lines|0);" << std::endl;
+	os << "\%DumpObjects(address, lines|1);" << std::endl;
+	os << "\%DumpObjects(taggedAddress, lines|1);" << std::endl;
+}
+
 RUNTIME_FUNCTION(Runtime_DumpObjects) {
 	SealHandleScope shs(isolate);
 
@@ -52,14 +62,24 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 		MaybeObject maybe_object(*args.address_of_arg_at(0));
 		Object obj = maybe_object.GetHeapObjectOrSmi();
 		pobj = HeapObject::cast(obj)->address();
-		if (obj->IsSmi()) 
+		if (obj->IsSmi()) {
+			os << "[!] error using OBJECT_MODE with smi parameter" << std::endl;
+			usage();
 			return args[0];
+		}
 	}
 	else if (mode == ADDRESS_MODE) {
-		CONVERT_NUMBER_CHECKED(int64_t, obj_addr, Int64, args[0]);
+		CONVERT_NUMBER_OPT(int64_t, obj_addr, Int64, args[0], 0);
+		obj_addr &= ~1; // untag if tagged
+		if (obj_addr == 0) {
+			os << "[!] error using ADDRESS_MODE with object parameter" << std::endl;
+			usage();
+			return args[0];
+		}
 		pobj = static_cast<Address>(obj_addr);
 	}
 
+	bool dumping_wasm_instance = false;
 	for (unsigned int i = 0; i < pvoid_display_count; ++i) {
 		uintptr_t ptr = pobj + i * sizeof(uintptr_t);
 		unsigned long val = *reinterpret_cast<unsigned long*>(ptr);
@@ -75,7 +95,12 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 					os << "----- [ ";
 					os << HeapObject::cast(tmp_obj)->map()->instance_type();
 					os << " : 0x" << std::hex << HeapObject::cast(tmp_obj)->Size();
-					os << " ] -----";
+					if (HeapObject::cast(tmp_obj)->map()->instance_type() == WASM_INSTANCE_TYPE) 
+						dumping_wasm_instance = true;
+					else
+						dumping_wasm_instance = false;
+					os << ((dumping_wasm_instance) ? " : REFERENCES RWX MEMORY]" : " ]");
+					os << " -----";
 					os << std::endl;
 				}
 			}
@@ -92,6 +117,10 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
 			os << "    ";
 			os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << val;
 			os << "    ";
+			if (dumping_wasm_instance) {
+				if (i == WasmInstanceObject::kJumpTableStartOffset / sizeof(uintptr_t))
+					os << "JumpTableStart [RWX]";
+			}
 			os << std::endl;
 		}
 	}
