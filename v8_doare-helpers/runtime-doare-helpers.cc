@@ -28,69 +28,69 @@ type name = default_value;                                          \
 if(obj->IsNumber()) name = NumberTo##Type(obj);                     \
 
 bool isTaggedPointer(unsigned long ptr) {
-	return (ptr & 1) && (ptr > MIN_PTR_ADDR) && (ptr < MAX_PTR_ADDR) && IsAligned(ptr-1, kTaggedSize);
+  return (ptr & 1) && (ptr > MIN_PTR_ADDR) && (ptr < MAX_PTR_ADDR) && IsAligned(ptr-1, kTaggedSize);
 }
 
 enum DumpFlag {
-	OBJECT_MODE = 0,
-	ADDRESS_MODE = 1,
+  OBJECT_MODE = 0,
+  ADDRESS_MODE = 1,
   ELEMENTS_MODE = 2
 };
 
 void usage() {
-	StdoutStream os;
+  StdoutStream os;
   os << "Object mode" << std::endl;
-	os << "\%DumpObjects(js_object, lines|0);" << std::endl;
-	os << "\%DumpObjects(address, lines|1);" << std::endl;
+  os << "\%DumpObjects(js_object, lines|0);" << std::endl;
+  os << "\%DumpObjects(address, lines|1);" << std::endl;
   os << "Address mode" << std::endl;
-	os << "\%DumpObjects(taggedAddress, lines|1);" << std::endl;
-	os << "\%DumpObjects(address, lines|1);" << std::endl;
+  os << "\%DumpObjects(taggedAddress, lines|1);" << std::endl;
+  os << "\%DumpObjects(address, lines|1);" << std::endl;
   os << "Elements mode" << std::endl;
-	os << "\%DumpObjects(taggedAddress, lines|3);" << std::endl;
-	os << "\%DumpObjects(address, lines|3);" << std::endl;
+  os << "\%DumpObjects(taggedAddress, lines|3);" << std::endl;
+  os << "\%DumpObjects(address, lines|3);" << std::endl;
 }
 
 RUNTIME_FUNCTION(Runtime_DumpObjects) {
-	SealHandleScope shs(isolate);
+  SealHandleScope shs(isolate);
 
-	StdoutStream os;
+  StdoutStream os;
 
-	CONVERT_NUMBER_OPT(uint32_t, pvoid_display_count, Uint32, args[1],10)
+  CONVERT_NUMBER_OPT(uint32_t, pvoid_display_count, Uint32, args[1],10)
 
-	DumpFlag mode = OBJECT_MODE;
+  DumpFlag mode = OBJECT_MODE;
 
-	if (pvoid_display_count & 1) {
-		mode = ADDRESS_MODE;
-	}
+  if (pvoid_display_count & 1) {
+    mode = ADDRESS_MODE;
+  }
   if (pvoid_display_count & 3) {
     mode = ELEMENTS_MODE;
   }
 
-	Address pobj;
+  Address pobj;
 
-	if (mode == OBJECT_MODE) {
-		MaybeObject maybe_object(*args.address_of_arg_at(0));
-		Object obj = maybe_object.GetHeapObjectOrSmi();
-		pobj = HeapObject::cast(obj)->address();
-		if (obj->IsSmi()) {
-			os << "[!] error using OBJECT_MODE with smi parameter" << std::endl;
-			usage();
-			return args[0];
-		}
-	}
-	else if (mode == ADDRESS_MODE) {
-		CONVERT_NUMBER_OPT(int64_t, obj_addr, Int64, args[0], 0);
-		obj_addr &= ~1; // untag if tagged
-		if (obj_addr == 0) {
-			os << "[!] error using ADDRESS_MODE with object parameter" << std::endl;
-			usage();
-			return args[0];
-		}
-		pobj = static_cast<Address>(obj_addr);
-	}
+  if (mode == OBJECT_MODE) {
+    MaybeObject maybe_object(*args.address_of_arg_at(0));
+    Object obj = maybe_object.GetHeapObjectOrSmi();
+    pobj = HeapObject::cast(obj)->address();
+    if (obj->IsSmi()) {
+      os << "[!] error using OBJECT_MODE with smi parameter" << std::endl;
+      usage();
+      return args[0];
+    }
+  }
+  else if (mode == ADDRESS_MODE) {
+    CONVERT_NUMBER_OPT(int64_t, obj_addr, Int64, args[0], 0);
+    obj_addr &= ~1; // untag if tagged
+    if (obj_addr == 0) {
+      os << "[!] error using ADDRESS_MODE with object parameter" << std::endl;
+      usage();
+      return args[0];
+    }
+    pobj = static_cast<Address>(obj_addr);
+  }
   else if (mode == ELEMENTS_MODE) {
-		MaybeObject maybe_object(*args.address_of_arg_at(0));
-		Object obj = maybe_object.GetHeapObjectOrSmi();
+    MaybeObject maybe_object(*args.address_of_arg_at(0));
+    Object obj = maybe_object.GetHeapObjectOrSmi();
     if (!obj->IsJSObject()) {
       os << "[!] error using ELEMENTS_MODE with non jsobject parameter" << std::endl;
       usage();
@@ -99,74 +99,74 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
     pobj = HeapObject::cast(JSObject::cast(obj)->elements())->address();
   }
 
-	bool dumping_wasm_instance = false;
-	bool dumping_string = false;
+  bool dumping_wasm_instance = false;
+  bool dumping_string = false;
 
-	for (unsigned int i = 0; i < pvoid_display_count; ++i) {
-		uintptr_t ptr = pobj + i * sizeof(uintptr_t);
-		unsigned long val = *reinterpret_cast<unsigned long*>(ptr);
-		// this is totally unsafe and might crash sometimes
-		// if val is incorrectly considered as a pointer
-		if (isTaggedPointer(val)) {
-			HeapObject* heapobj = reinterpret_cast<HeapObject*>(ptr)	;
-			InstanceType heapobj_instance_type = heapobj->map()->instance_type();
-			if (heapobj_instance_type == MAP_TYPE) {
-				MaybeObject maybe_tmp_object(reinterpret_cast<Address>(ptr+1));
-				Object tmp_obj = maybe_tmp_object.GetHeapObjectOrSmi();
-				if (!tmp_obj->IsSmi()) {
-					os << "----- [ ";
-					os << HeapObject::cast(tmp_obj)->map()->instance_type();
-					os << " : 0x" << std::hex << HeapObject::cast(tmp_obj)->Size();
-					dumping_wasm_instance = false;
-					dumping_string = false;
-					switch (HeapObject::cast(tmp_obj)->map()->instance_type()) {
-						case WASM_INSTANCE_TYPE:
-							dumping_wasm_instance = true;
-							break;
-						case ONE_BYTE_STRING_TYPE:
-						case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-							dumping_string = true;
-							break;
-						default:
-							break;
-					}
-					os << ((dumping_wasm_instance) ? " : REFERENCES RWX MEMORY]" : " ]");
-					os << " -----";
-					os << std::endl;
-				}
-			}
-			os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << ptr;
-			os << "    ";
-			os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << val;
-			os << "    ";
-			os << heapobj_instance_type;
-			os << "    ";
-			os << std::endl;
-		}
-		else {
-			os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << ptr;
-			os << "    ";
-			os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << val;
-			os << "    ";
-			if (dumping_wasm_instance) {
-				if (i == WasmInstanceObject::kJumpTableStartOffset / sizeof(uintptr_t))
-					os << "JumpTableStart [RWX]";
-			}
-			else if (dumping_string) {
-				std::string str = std::string((const char*)&val).substr(0, sizeof(uintptr_t));
-				str.erase(remove_if(str.begin(),str.end(), [](char c) { return c < '!'; }), str.end());  
-				os << str;
-			}
-			os << std::endl;
-		}
-	}
+  for (unsigned int i = 0; i < pvoid_display_count; ++i) {
+    uintptr_t ptr = pobj + i * sizeof(uintptr_t);
+    unsigned long val = *reinterpret_cast<unsigned long*>(ptr);
+    // this is totally unsafe and might crash sometimes
+    // if val is incorrectly considered as a pointer
+    if (isTaggedPointer(val)) {
+      HeapObject* heapobj = reinterpret_cast<HeapObject*>(ptr)  ;
+      InstanceType heapobj_instance_type = heapobj->map()->instance_type();
+      if (heapobj_instance_type == MAP_TYPE) {
+        MaybeObject maybe_tmp_object(reinterpret_cast<Address>(ptr+1));
+        Object tmp_obj = maybe_tmp_object.GetHeapObjectOrSmi();
+        if (!tmp_obj->IsSmi()) {
+          os << "----- [ ";
+          os << HeapObject::cast(tmp_obj)->map()->instance_type();
+          os << " : 0x" << std::hex << HeapObject::cast(tmp_obj)->Size();
+          dumping_wasm_instance = false;
+          dumping_string = false;
+          switch (HeapObject::cast(tmp_obj)->map()->instance_type()) {
+            case WASM_INSTANCE_TYPE:
+              dumping_wasm_instance = true;
+              break;
+            case ONE_BYTE_STRING_TYPE:
+            case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+              dumping_string = true;
+              break;
+            default:
+              break;
+          }
+          os << ((dumping_wasm_instance) ? " : REFERENCES RWX MEMORY]" : " ]");
+          os << " -----";
+          os << std::endl;
+        }
+      }
+      os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << ptr;
+      os << "    ";
+      os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << val;
+      os << "    ";
+      os << heapobj_instance_type;
+      os << "    ";
+      os << std::endl;
+    }
+    else {
+      os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << ptr;
+      os << "    ";
+      os << std::hex << "0x" << std::setfill('0') << std::setw(sizeof(uintptr_t)*2) << val;
+      os << "    ";
+      if (dumping_wasm_instance) {
+        if (i == WasmInstanceObject::kJumpTableStartOffset / sizeof(uintptr_t))
+          os << "JumpTableStart [RWX]";
+      }
+      else if (dumping_string) {
+        std::string str = std::string((const char*)&val).substr(0, sizeof(uintptr_t));
+        str.erase(remove_if(str.begin(),str.end(), [](char c) { return c < '!'; }), str.end());  
+        os << str;
+      }
+      os << std::endl;
+    }
+  }
 
-	
-	return args[0];
+  
+  return args[0];
 }
 
 RUNTIME_FUNCTION(Runtime_DescribeObjectLayout) {
-	return args[0];
+  return args[0];
 }
 
 }  // namespace internal
