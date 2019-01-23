@@ -62,7 +62,7 @@ RUNTIME_FUNCTION(Runtime_DumpObjects) {
   if (pvoid_display_count & 1) {
     mode = ADDRESS_MODE;
   }
-  if (pvoid_display_count & 3) {
+  if ((pvoid_display_count & 3) == 3) {
     mode = ELEMENTS_MODE;
   }
 
